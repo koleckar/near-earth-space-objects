@@ -38,7 +38,7 @@ There is however limit chosen for one year. Can be switched off by adding extra 
                 "estimated_diameter_max": 169.8341531374
             }
         },
-        "closest_encounter_time": "2023-01-01",
+        "closest_encounter_time": "2023-Jan-01 00:59",
         "closest_encounter_distance": {
             "astronomical": "0.0569979859",
             "lunar": "22.1722165151",
