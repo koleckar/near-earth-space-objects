@@ -1,0 +1,40 @@
+"""
+Nasa NeoWs REST api response structure:
+
+near_earth_objects (dict): keys=consecutive days
+consecutive day(list) of space objects
+space object (dict): dict_keys([
+    'links',
+    'id',
+    'neo_reference_id',
+    'name',
+    'nasa_jpl_url',
+    'absolute_magnitude_h',
+    'estimated_diameter',
+    'is_potentially_hazardous_asteroid',
+    'close_approach_data',
+    'is_sentry_object'
+    ])
+
+close_approach_data is our value for sorting entries
+
+close_approach_data list of 1 element = (dict) : dict_keys([
+    'close_approach_date',
+    'close_approach_date_full',
+    'epoch_date_close_approach',
+    'relative_velocity',
+    'miss_distance',
+    'orbiting_body'
+    ])
+
+We sort by 'miss_distance' (dict) : dict_keys([
+    'astronomical',
+    'lunar',
+    'kilometers',
+    'miles'
+    ])
+
+we will use kilometers
+
+entry_dist_km = near_earth_objects["2023-01-01"][entry]["close_approach_data"][0]["miss_distance"]["kilometers"])
+"""
