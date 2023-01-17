@@ -8,8 +8,8 @@ REST Api:
 GET at 127.0.0.1:5000/space_objects/start_date/end_date  
 
 
-- start_date in format YYYY-MM-DD  
-- end_date in format YYYY-MM-DD  
+- start_date as string in format YYYY-MM-DD  
+- end_date as string in format YYYY-MM-DD  
 
 
 Feed date limit is only 7 Days for NASA NeoWs api, so if requested day span is larger than week, internally multiple calls are performed to nasa rest api, aggregating results for final sorting. There is however limit set to 365 days, for safety reasons.
