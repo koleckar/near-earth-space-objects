@@ -1,0 +1,9 @@
+.git
+.idea
+venv/
+test/
+__pycache__
+Dockerfile
+README.md
+requirements.txt
+nasa_NeoWs_rest_GET_response_structure.txt
