@@ -1,6 +1,6 @@
 # near-earth-space-objects
 
-Offers rest GET call returning response as json list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
+Offers rest GET call returning json list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
 
 ------------------------------------------------------------------------
 REST Api:  
@@ -12,8 +12,7 @@ GET at 127.0.0.1:5000/space_objects/start_date/end_date
 - end_date in format YYYY-MM-DD  
 
 
-The Feed date limit is only 7 Days for NASA NeoWs api, so if requested day span is larger than week, multiple calls are performed to nasa rest api, aggregating results.  
-There is however limit chosen for one year. Can be switched off by adding extra boolean paramater of day_limit=False.
+Feed date limit is only 7 Days for NASA NeoWs api, so if requested day span is larger than week, internally multiple calls are performed to nasa rest api, aggregating results for final sorting. There is however limit set to 365 days, for safety reasons.
 
 
 ```json
@@ -53,3 +52,9 @@ There is however limit chosen for one year. Can be switched off by adding extra 
 
 
 ```
+
+issues/TODOs:
+- Switch off day limit by adding extra boolean paramater?
+- implement cache?
+- partial sort while waiting for nasa GET response?
+
