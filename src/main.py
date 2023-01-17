@@ -4,12 +4,19 @@ import datetime
 
 import requests
 from flask import Flask
-from flask_restful import Api, Resource
+from flask_restful import Api, Resource, reqparse, abort
 
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 api = Api(app)
+get_space_objects_args = reqparse.RequestParser()
+get_space_objects_args.add_argument("start_date", type=str, required=True,
+                                    help="Start date in format yyyy-mm-dd, required")
+get_space_objects_args.add_argument("end_date", type=str, required=True,
+                                    help="End date in format yyyy-mm-dd, same date as start_date or after, required.")
+get_space_objects_args.add_argument("day_limit_off", type=bool, default=False,
+                                    help="If True, turns of day-span(end_date - start_date) limit., not required.")
 
 NASA_API_KEY = "v9IuYe5UNjJUikdhNfapmn8HhRYJvATWCCSQIYhQ"
 NASA_NEOWS_BASE_URL = "https://api.nasa.gov/neo/rest/v1/feed"
@@ -43,29 +50,52 @@ def get_day_span(start_date: str, end_date: str) -> int:
     datetime_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
     datetime_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
     day_span = (datetime_end_date - datetime_start_date).days
-    assert day_span >= 0, "Negative day span!"
     return day_span
 
 
+def end_date_before_start_date(start_date: str, end_date: str) -> bool:
+    return False if get_day_span(start_date, end_date) >= 0 else True
+
+
 class RestController(Resource):
-    def get(self, start_date: str, end_date: str):
+    '''
+    Simple Flask controller offering only 1 GET method with 2 parameters start_date and end_date in format yyyy-mm-yy.
+        Call to get with valid parameters returns a list of responses from nasa neows api - near space objects -
+        aggregated if day span is larger than 7 (which is current limit on nasa api side) and sorting the responses
+        by closest recorded distance, for each returning 'name',
+                                                         'size_estimate',
+                                                         'closest_encounter_time',
+                                                         'closest_encounter_distance'
+    '''
+
+    def get(self):
+        args = get_space_objects_args.parse_args()
+        start_date = args["start_date"]
+        end_date = args["end_date"]
 
         logging.info(f"/space_objects GET start_date={start_date}, end_date={end_date}")
 
         if not is_date_valid(start_date):
-            return [{"error": "invalid start_date"}], 400
+            abort(http_status_code=400, message="invalid start_date")
         if not is_date_valid(end_date):
-            return [{"error": "invalid end_date"}], 400
+            abort(http_status_code=400, message="invalid end_date")
+        if end_date_before_start_date(start_date, end_date):
+            abort(http_status_code=400, message="end_date before start_date")
 
         nasa_responses = get_nasa_responses(start_date, end_date)
-
         return sort_response(nasa_responses)
 
 
-api.add_resource(RestController, "/space_objects/<string:start_date>/<string:end_date>")
+api.add_resource(RestController, "/space_objects")
 
 
 def get_date_pairs(start_date: str, end_date: str) -> list:
+    '''
+    Calculates pairs of dates - dates of first and last days of consecutive weeks in the days interval
+    given by start_date and end_date. The last pair can be shorter than 7 days
+
+    :return: list of date pairs used for GET call to nasa api.
+    '''
     day_span = get_day_span(start_date, end_date)
     day_span = min(day_span, MAX_DAY_SPAN)  # todo: signal span clipping in GET response?
 
@@ -80,10 +110,10 @@ def get_date_pairs(start_date: str, end_date: str) -> list:
     i_start = 0
     in_span = True
     while in_span:
-        if i_start + 7 >= day_span:
+        if i_start + 6 >= day_span:  # count the first day too, so only +6
             in_span = False
 
-        span = min(6, max(0, day_span - i_start))
+        span = min(6, max(0, day_span - i_start))  # count the first day too, so only +6
         date_pairs.append([
             str((datetime_start_date + datetime.timedelta(days=i_start)).date()),
             str((datetime_start_date + datetime.timedelta(days=i_start + span)).date())
@@ -115,6 +145,11 @@ def get_nasa_responses(start_date: str, end_date: str) -> list:
 
 
 def get_nasa_response(start_date: str, end_date: str):
+    '''
+    Response from Nasa NeoWs rest api. See NASA_NeoWs_GET_response_structure.txt for response structure.
+    :return: Request, one GET Response from nasa api.
+    '''
+
     request_url = NASA_NEOWS_BASE_URL + "?" \
                   + "start_date=" + start_date + "&end_date=" + end_date + "&api_key=" + NASA_API_KEY
 
@@ -147,7 +182,7 @@ def sort_response(entries_all_days: list) -> list:
         response.append({
             'name': entry['name'],
             'size_estimate': entry['estimated_diameter'],
-            'closest_encounter_time': entry["close_approach_data"][0]["close_approach_date"],
+            'closest_encounter_time': entry["close_approach_data"][0]["close_approach_date_full"],
             'closest_encounter_distance': entry["close_approach_data"][0]["miss_distance"]
         })
     return response
@@ -156,7 +191,3 @@ def sort_response(entries_all_days: list) -> list:
 if __name__ == '__main__':
     app.run(debug=True)
 
-# Todo:
-#   !handle missing values during sorting and outputting object values!
-#   implement cache?
-#   partial sort while waiting for nasa GET response?
