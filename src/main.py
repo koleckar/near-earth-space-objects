@@ -1,22 +1,23 @@
 import logging
-import numpy as np
 import datetime
+import asyncio
+import numpy as np
 
 import requests
-from flask import Flask
-from flask_restful import Api, Resource, reqparse, abort
+import httpx
+from flask import Flask, request, abort
 
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
-api = Api(app)
-get_space_objects_args = reqparse.RequestParser()
-get_space_objects_args.add_argument("start_date", type=str, required=True,
-                                    help="Start date in format yyyy-mm-dd, required")
-get_space_objects_args.add_argument("end_date", type=str, required=True,
-                                    help="End date in format yyyy-mm-dd, same date as start_date or after, required.")
-get_space_objects_args.add_argument("day_limit_off", type=bool, default=False,
-                                    help="If True, turns of day-span(end_date - start_date) limit., not required.")
+
+# get_space_objects_args = reqparse.RequestParser()
+# get_space_objects_args.add_argument("start_date", type=str, required=True,
+#                                     help="Start date in format yyyy-mm-dd, required")
+# get_space_objects_args.add_argument("end_date", type=str, required=True,
+#                                     help="End date in format yyyy-mm-dd, same date as start_date or after, required.")
+# get_space_objects_args.add_argument("day_limit_off", type=bool, default=False,
+#                                     help="If True, turns of day-span(end_date - start_date) limit., not required.")
 
 NASA_API_KEY = "v9IuYe5UNjJUikdhNfapmn8HhRYJvATWCCSQIYhQ"
 NASA_NEOWS_BASE_URL = "https://api.nasa.gov/neo/rest/v1/feed"
@@ -57,36 +58,22 @@ def end_date_before_start_date(start_date: str, end_date: str) -> bool:
     return False if get_day_span(start_date, end_date) >= 0 else True
 
 
-class RestController(Resource):
-    '''
-    Simple Flask controller offering only 1 GET method with 2 parameters start_date and end_date in format yyyy-mm-yy.
-        Call to get with valid parameters returns a list of responses from nasa neows api - near space objects -
-        aggregated if day span is larger than 7 (which is current limit on nasa api side) and sorting the responses
-        by closest recorded distance, for each returning 'name',
-                                                         'size_estimate',
-                                                         'closest_encounter_time',
-                                                         'closest_encounter_distance'
-    '''
+@app.get("/space_objects")
+async def get_space_objects():
+    start_date = request.args.get('start_date', type=str)
+    end_date = request.args.get('end_date', type=str)
+    logging.info(f"/space_objects GET start_date={start_date}, end_date={end_date}")
 
-    def get(self):
-        args = get_space_objects_args.parse_args()
-        start_date = args["start_date"]
-        end_date = args["end_date"]
+    if not is_date_valid(start_date):
+        return {"error": "invalid start_date"}, 400
+    if not is_date_valid(end_date):
+        return {"error": "invalid end_date"}, 400
+    if end_date_before_start_date(start_date, end_date):
+        return {"error": "end_date before start_date"}, 400
 
-        logging.info(f"/space_objects GET start_date={start_date}, end_date={end_date}")
-
-        if not is_date_valid(start_date):
-            abort(http_status_code=400, message="invalid start_date")
-        if not is_date_valid(end_date):
-            abort(http_status_code=400, message="invalid end_date")
-        if end_date_before_start_date(start_date, end_date):
-            abort(http_status_code=400, message="end_date before start_date")
-
-        nasa_responses = get_nasa_responses(start_date, end_date)
-        return sort_response(nasa_responses)
-
-
-api.add_resource(RestController, "/space_objects")
+    return sort_response(
+        flatten_nasa_responses(
+            await get_nasa_responses(start_date, end_date)))
 
 
 def get_date_pairs(start_date: str, end_date: str) -> list:
@@ -124,17 +111,27 @@ def get_date_pairs(start_date: str, end_date: str) -> list:
     return date_pairs
 
 
-def get_nasa_responses(start_date: str, end_date: str) -> list:
-    '''
-    Calls nasa rest service (multiple times if needed). Limit is set to MAX_DAY_SPAN=365
+async def get_nasa_responses(start_date: str, end_date: str):
+    async with httpx.AsyncClient() as session:
+        return await asyncio.gather(
+            *[
+                asyncio.create_task(get_nasa_response(session, start_date, end_date))
+                for start_date, end_date in get_date_pairs(start_date, end_date)
+            ]
+        )
 
-    :return: list of entries from all days, aggregated from all nasa responses.
-    '''
-    nasa_responses = []
-    for start, end in get_date_pairs(start_date, end_date):
-        logging.info(f"making nasa GET call")
-        nasa_responses.append(get_nasa_response(start, end))
 
+async def get_nasa_response(session: httpx.AsyncClient, start_date: str, end_date: str):
+    url = NASA_NEOWS_BASE_URL + "?" \
+          + "start_date=" + start_date + "&end_date=" + end_date + "&api_key=" + NASA_API_KEY
+
+    logging.info("GET " + start_date + " " + end_date)
+
+    return await session.get(url, timeout=httpx.Timeout(10.0, read=None))
+
+
+def flatten_nasa_responses(nasa_responses: list) -> list:
+    logging.info("All nasa responses received.")
     entries_all_days = []
     for nasa_response in nasa_responses:
         for entries_of_one_day in nasa_response.json()['near_earth_objects'].values():
@@ -142,19 +139,6 @@ def get_nasa_responses(start_date: str, end_date: str) -> list:
                 entries_all_days.append(entry)
 
     return entries_all_days
-
-
-def get_nasa_response(start_date: str, end_date: str):
-    '''
-    Response from Nasa NeoWs rest api. See NASA_NeoWs_GET_response_structure.txt for response structure.
-    :return: Request, one GET Response from nasa api.
-    '''
-
-    request_url = NASA_NEOWS_BASE_URL + "?" \
-                  + "start_date=" + start_date + "&end_date=" + end_date + "&api_key=" + NASA_API_KEY
-
-    response = requests.get(request_url)
-    return response
 
 
 def sort_response(entries_all_days: list) -> list:
@@ -190,4 +174,3 @@ def sort_response(entries_all_days: list) -> list:
 
 if __name__ == '__main__':
     app.run(debug=True)
-
