@@ -1,18 +1,19 @@
 # near-earth-space-objects
 
-Offers rest GET call returning json list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
+Exposes rest GET returning list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
 
 ------------------------------------------------------------------------
 REST Api:  
 
-GET at 127.0.0.1:5000/space_objects/start_date/end_date  
-
+GET at localhost:5000/space_objects?start_date=2022-04-01&end_date=2022-06-01  
+retrieving near-earth-space-objects from nasa neows api between 2022-04-01 and 2022-06-01  
+App listens on localhost port 5000, GET exposed at "/space_objects", expecting two arguments 'start_date' and 'end_date'  
 
 - start_date as string in format YYYY-MM-DD  
 - end_date as string in format YYYY-MM-DD  
 
 
-Feed date limit is only 7 Days for NASA NeoWs api, so if requested day span is larger than week, internally multiple calls are performed to nasa rest api, aggregating results for final sorting. There is however limit set to 365 days, for safety reasons.
+Feed date limit is only 7 Days for NASA NeoWs api, so if requested day span is larger than week, internally multiple asynchronous calls are performed to nasa rest api, aggregating results for final sorting. There is however limit set to 365 days, for safety reasons.
 
 
 ```json
@@ -50,6 +51,13 @@ Feed date limit is only 7 Days for NASA NeoWs api, so if requested day span is l
     .
 ]
 ```
+Response, near-earth-space-objects sorted by closest recorded distance, a list of maps, with keys 
+ - "name"
+ - "size_estimate"
+ - "closest_encounter_time"
+ - "closest_encounter_distance"   
+ 
+----------------------------------------------------------------------------------
 
 issues/TODOs:
 - Switch off day limit by adding extra boolean paramater?
