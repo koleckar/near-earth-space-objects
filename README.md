@@ -1,11 +1,11 @@
 # near-earth-space-objects
 
-Exposes rest GET returning list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
+Python app using Flask, uWSGI, Nginx and Docker. Exposes rest GET returning list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
 
 ------------------------------------------------------------------------
 REST API:  
 
-GET at localhost:5000/space_objects?start_date=2022-04-01&end_date=2022-06-01  
+GET at localhost:80/space_objects?start_date=2022-04-01&end_date=2022-06-01  
   
 retrieving near-earth-space-objects from nasa neows api between 2022-04-01 and 2022-06-01  
 App listens on localhost port 5000, GET exposed at "/space_objects", expecting two arguments 'start_date' and 'end_date'  
