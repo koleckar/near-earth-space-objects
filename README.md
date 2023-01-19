@@ -3,9 +3,10 @@
 Exposes rest GET returning list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
 
 ------------------------------------------------------------------------
-REST Api:  
+REST API:  
 
 GET at localhost:5000/space_objects?start_date=2022-04-01&end_date=2022-06-01  
+  
 retrieving near-earth-space-objects from nasa neows api between 2022-04-01 and 2022-06-01  
 App listens on localhost port 5000, GET exposed at "/space_objects", expecting two arguments 'start_date' and 'end_date'  
 
@@ -74,4 +75,5 @@ issues/TODOs:
 - Switch off day limit by adding extra boolean paramater?
 - implement cache?
 - partial sort while waiting for nasa GET response?
+- tests
 
