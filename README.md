@@ -49,8 +49,6 @@ Feed date limit is only 7 Days for NASA NeoWs api, so if requested day span is l
     .
     .
 ]
-
-
 ```
 
 issues/TODOs:
