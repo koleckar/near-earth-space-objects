@@ -1,11 +1,10 @@
 FROM python:3.10
 
-WORKDIR /code
+WORKDIR /app
 
-COPY ./requirements.txt /code/requirements.txt
+COPY . .
 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-COPY ./src /code/src
-
-CMD ["python", "./main.py", "--host", "0.0.0.0", "--port", "5000"]
+ENTRYPOINT ["python"]
+CMD ["./run.py"]

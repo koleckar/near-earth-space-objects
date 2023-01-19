@@ -3,25 +3,14 @@ import datetime
 import asyncio
 import numpy as np
 
-import requests
 import httpx
-from flask import Flask, request, abort
+from flask import request
+from src import app
 
 logging.basicConfig(level=logging.INFO)
 
-app = Flask(__name__)
-
-# get_space_objects_args = reqparse.RequestParser()
-# get_space_objects_args.add_argument("start_date", type=str, required=True,
-#                                     help="Start date in format yyyy-mm-dd, required")
-# get_space_objects_args.add_argument("end_date", type=str, required=True,
-#                                     help="End date in format yyyy-mm-dd, same date as start_date or after, required.")
-# get_space_objects_args.add_argument("day_limit_off", type=bool, default=False,
-#                                     help="If True, turns of day-span(end_date - start_date) limit., not required.")
-
 NASA_API_KEY = "v9IuYe5UNjJUikdhNfapmn8HhRYJvATWCCSQIYhQ"
 NASA_NEOWS_BASE_URL = "https://api.nasa.gov/neo/rest/v1/feed"
-
 MAX_DAY_SPAN = 365
 
 
@@ -37,16 +26,6 @@ def is_date_valid(date: str) -> bool:
     return True
 
 
-@DeprecationWarning
-def clip_end_date_to_seven_days(start_date: str, end_date: str) -> str:
-    datetime_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-    datetime_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
-
-    day_span = (datetime_end_date - datetime_start_date).days
-
-    return end_date if day_span <= 7 else str((datetime_start_date + datetime.timedelta(days=7)).date())
-
-
 def get_day_span(start_date: str, end_date: str) -> int:
     datetime_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
     datetime_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
@@ -54,21 +33,36 @@ def get_day_span(start_date: str, end_date: str) -> int:
     return day_span
 
 
-def end_date_before_start_date(start_date: str, end_date: str) -> bool:
+def is_end_date_before_start_date(start_date: str, end_date: str) -> bool:
     return False if get_day_span(start_date, end_date) >= 0 else True
 
 
 @app.get("/space_objects")
 async def get_space_objects():
-    start_date = request.args.get('start_date', type=str)
-    end_date = request.args.get('end_date', type=str)
+    '''
+    GET method with 2 parameters start_date and end_date in format yyyy-mm-yy.
+    If parameters vali, returns a list of responses, from nasa neows api - near space objects -
+    aggregated if day span is larger than 7 (which is current limit on nasa api side) and sorting the responses
+    by closest recorded distance, for each returning    'name',
+                                                        'size_estimate',
+                                                        'closest_encounter_time',
+                                                        'closest_encounter_distance'
+    If multiple calls to Nasa api have to be made, they are performed asynchronously, without time-limit,
+    using httpx and python coroutines.
+    '''
+    start_date = request.args.get('start_date', type=str, default=None)
+    end_date = request.args.get('end_date', type=str, default=None)
     logging.info(f"/space_objects GET start_date={start_date}, end_date={end_date}")
 
+    if start_date is None:
+        return {"error": "missing argument start_date"}, 400
+    if end_date is None:
+        return {"error": "missing argument end_date"}, 400
     if not is_date_valid(start_date):
-        return {"error": "invalid start_date"}, 400
+        return {"error": "invalid start_date, use format yyyy-mm-dd"}, 400
     if not is_date_valid(end_date):
-        return {"error": "invalid end_date"}, 400
-    if end_date_before_start_date(start_date, end_date):
+        return {"error": "invalid end_date, use format yyyy-mm-dd"}, 400
+    if is_end_date_before_start_date(start_date, end_date):
         return {"error": "end_date before start_date"}, 400
 
     return sort_response(
@@ -112,6 +106,14 @@ def get_date_pairs(start_date: str, end_date: str) -> list:
 
 
 async def get_nasa_responses(start_date: str, end_date: str):
+    '''
+    Asynchronously performs as many GET calls to nasa api, as there are date pairs calculated from
+    start_date and end_date. (Nasa limit is 7 days for 1 call, so date pairs are calculated to span 7 days
+    except the last one, which can be shorter.)
+    Creates asyncio event loop
+
+    :return: list of aggregated nasa responses.
+    '''
     async with httpx.AsyncClient() as session:
         return await asyncio.gather(
             *[
@@ -121,7 +123,12 @@ async def get_nasa_responses(start_date: str, end_date: str):
         )
 
 
+# todo: handle failed results from session.get
 async def get_nasa_response(session: httpx.AsyncClient, start_date: str, end_date: str):
+    '''
+       Response from Nasa NeoWs rest api. See NASA_NeoWs_GET_response_structure.txt for response structure.
+       :return: response from nasa api.
+       '''
     url = NASA_NEOWS_BASE_URL + "?" \
           + "start_date=" + start_date + "&end_date=" + end_date + "&api_key=" + NASA_API_KEY
 
@@ -131,7 +138,14 @@ async def get_nasa_response(session: httpx.AsyncClient, start_date: str, end_dat
 
 
 def flatten_nasa_responses(nasa_responses: list) -> list:
+    '''
+    Json structure of nasa response is quite complicated, flatten it.
+
+    :param nasa_responses: list of nasa responses.
+    :return: list of entries = all recorded near-earth-space-objects across all days.
+    '''
     logging.info("All nasa responses received.")
+
     entries_all_days = []
     for nasa_response in nasa_responses:
         for entries_of_one_day in nasa_response.json()['near_earth_objects'].values():
@@ -172,5 +186,11 @@ def sort_response(entries_all_days: list) -> list:
     return response
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@DeprecationWarning
+def clip_end_date_to_seven_days(start_date: str, end_date: str) -> str:
+    datetime_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+    datetime_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+
+    day_span = (datetime_end_date - datetime_start_date).days
+
+    return end_date if day_span <= 7 else str((datetime_start_date + datetime.timedelta(days=7)).date())
