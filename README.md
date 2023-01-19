@@ -58,6 +58,17 @@ Response, near-earth-space-objects sorted by closest recorded distance, a list o
  - "closest_encounter_distance"   
  
 ----------------------------------------------------------------------------------
+note on flask async routes.  
+Flask(> 2.0) has async routes, it however does not have async request stack.   
+
+"Eventhough asynchronous code can be executed in Flask, it's executed within the context of a synchronous framework.
+Various async tasks can be executed in a single request, each async task must finish before a response gets sent back. 
+Other Python web frameworks that support ASGI (Asynchronous Server Gateway Interface), which supports asynchronous call stacks so that routes can run concurrently:
+Django >= 3.2, FastAPI, Quart. " -from https://testdriven.io/blog/flask-async/  
+  
+However, in this task, the taks is not stateless, we have to wait for all the async tasks to finish, because we return sorted result.  
+
+----------------------------------------------------------------------------------
 
 issues/TODOs:
 - Switch off day limit by adding extra boolean paramater?
