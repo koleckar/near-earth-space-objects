@@ -1,6 +1,19 @@
 services:
-  app:
+
+  flask:
     build:
       context: ./
+    container_name: flask
+    restart: always
+    expose:
+      - 8080
+# if uWSGI server exposed directly
+#    ports:
+#      - 8080:8080
+
+  nginx:
+    build: ./nginx
+    container_name: nginx
+    restart: always
     ports:
-      - 5000:5000
+      - "80:80"

@@ -6,5 +6,10 @@ COPY . .
 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-ENTRYPOINT ["python"]
-CMD ["./run.py"]
+# development
+#ENTRYPOINT ["python"]
+#CMD ["./run.py"]
+
+#deployment, start uWSGI
+CMD ["uwsgi", "app.ini"]
+
