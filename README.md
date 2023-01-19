@@ -8,7 +8,7 @@ REST API:
 GET at localhost:80/space_objects?start_date=2022-04-01&end_date=2022-06-01  
   
 retrieving near-earth-space-objects from nasa neows api between 2022-04-01 and 2022-06-01  
-App listens on localhost port 5000, GET exposed at "/space_objects", expecting two arguments 'start_date' and 'end_date'  
+App listens on localhost port 80, GET exposed at "/space_objects", expecting two arguments 'start_date' and 'end_date'  
 
 - start_date as string in format YYYY-MM-DD  
 - end_date as string in format YYYY-MM-DD  
