@@ -57,6 +57,15 @@ Response, near-earth-space-objects sorted by closest recorded distance, a list o
  - "size_estimate"
  - "closest_encounter_time"
  - "closest_encounter_distance"   
+----------------------------------------------------------------------------------
+
+You must have docker installed on your system.  
+To build run the docker images with provided docker-compose.yml use: 
+
+ ```console
+ docker-compose up
+ ```  
+ Two docker images - flask (the flask app) and nginx(as reverse proxy) are build and run.  
  
 ----------------------------------------------------------------------------------
 note on flask async routes.  
