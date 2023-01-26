@@ -1,14 +1,14 @@
 # near-earth-space-objects
 
-Exposes rest GET returning list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
+Python app using Flask, uWSGI, Nginx and Docker. Exposes rest GET returning list of sorted near-earth-space-objects retrieved from NASA NeoWs rest api.  
 
 ------------------------------------------------------------------------
 REST API:  
 
-GET at localhost:5000/space_objects?start_date=2022-04-01&end_date=2022-06-01  
+GET at localhost:80/space_objects?start_date=2022-04-01&end_date=2022-06-01  
   
 retrieving near-earth-space-objects from nasa neows api between 2022-04-01 and 2022-06-01  
-App listens on localhost port 5000, GET exposed at "/space_objects", expecting two arguments 'start_date' and 'end_date'  
+App listens on localhost port 80, GET exposed at "/space_objects", expecting two arguments 'start_date' and 'end_date'  
 
 - start_date as string in format YYYY-MM-DD  
 - end_date as string in format YYYY-MM-DD  
@@ -57,6 +57,15 @@ Response, near-earth-space-objects sorted by closest recorded distance, a list o
  - "size_estimate"
  - "closest_encounter_time"
  - "closest_encounter_distance"   
+----------------------------------------------------------------------------------
+
+You must have docker installed on your system.  
+To build run the docker images with provided docker-compose.yml use: 
+
+ ```console
+ docker-compose up
+ ```  
+ Two docker images - flask (the flask app) and nginx(as reverse proxy) are build and run.  
  
 ----------------------------------------------------------------------------------
 note on flask async routes.  
