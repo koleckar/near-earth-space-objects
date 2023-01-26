@@ -15,10 +15,10 @@ MAX_DAY_SPAN = 365
 
 
 def is_date_valid(date: str) -> bool:
-    '''
+    """
     :param date: (str) date in format YYYY-MM-DD
     :return: true if date in format YYYY-MM-DD, false otherwise
-    '''
+    """
     try:
         datetime.datetime.strptime(date, '%Y-%m-%d')
     except ValueError:
@@ -39,7 +39,7 @@ def is_end_date_before_start_date(start_date: str, end_date: str) -> bool:
 
 @app.get("/space_objects")
 async def get_space_objects():
-    '''
+    """
     GET method with 2 parameters start_date and end_date in format yyyy-mm-yy.
     If parameters vali, returns a list of responses, from nasa neows api - near space objects -
     aggregated if day span is larger than 7 (which is current limit on nasa api side) and sorting the responses
@@ -49,7 +49,7 @@ async def get_space_objects():
                                                         'closest_encounter_distance'
     If multiple calls to Nasa api have to be made, they are performed asynchronously, without time-limit,
     using httpx and python coroutines.
-    '''
+    """
     start_date = request.args.get('start_date', type=str, default=None)
     end_date = request.args.get('end_date', type=str, default=None)
     logging.info(f"/space_objects GET start_date={start_date}, end_date={end_date}")
@@ -106,14 +106,14 @@ def get_date_pairs(start_date: str, end_date: str) -> list:
 
 
 async def get_nasa_responses(start_date: str, end_date: str):
-    '''
+    """
     Asynchronously performs as many GET calls to nasa api, as there are date pairs calculated from
     start_date and end_date. (Nasa limit is 7 days for 1 call, so date pairs are calculated to span 7 days
     except the last one, which can be shorter.)
     Creates asyncio event loop
 
     :return: list of aggregated nasa responses.
-    '''
+    """
     async with httpx.AsyncClient() as session:
         return await asyncio.gather(
             *[
@@ -125,10 +125,10 @@ async def get_nasa_responses(start_date: str, end_date: str):
 
 # todo: handle failed results from session.get
 async def get_nasa_response(session: httpx.AsyncClient, start_date: str, end_date: str):
-    '''
-       Response from Nasa NeoWs rest api. See NASA_NeoWs_GET_response_structure.txt for response structure.
-       :return: response from nasa api.
-       '''
+    """
+    Response from Nasa NeoWs rest api. See NASA_NeoWs_GET_response_structure.txt for response structure.
+    :return: response from nasa api.
+    """
     url = NASA_NEOWS_BASE_URL + "?" \
           + "start_date=" + start_date + "&end_date=" + end_date + "&api_key=" + NASA_API_KEY
 
@@ -156,7 +156,7 @@ def flatten_nasa_responses(nasa_responses: list) -> list:
 
 
 def sort_response(entries_all_days: list) -> list:
-    '''
+    """
     Space objects, sorted by their closest approach distance to Earth,
     each containing object name, size estimate, time and distance of the closest encounter.
 
@@ -166,7 +166,12 @@ def sort_response(entries_all_days: list) -> list:
 
     :param entries_all_days: Response from possible multiple GET request to "https://api.nasa.gov/neo/rest/v1/feed"
     :return: list of dicts, keys = {'name', 'size_estimate', 'closest_encounter_time', 'closest_encounter_distance'}
-    '''
+    """
+    # todo not using numpy big lib 64Mb 100ms to load..., use python builtins
+    # sorted_entries = sorted(entries_all_days,
+    #                         key=lambda entry: entry["close_approach_data"][0]["miss_distance"]["kilometers"])
+    # filter(sorted_entries, ...)
+
     miss_distances_in_km = np.zeros(len(entries_all_days))
     for i in range(len(entries_all_days)):
         miss_distances_in_km[i] = entries_all_days[i]["close_approach_data"][0]["miss_distance"]["kilometers"]
